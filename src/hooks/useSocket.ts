@@ -6,11 +6,13 @@ const WS_URL = "wss://chessmasterbackend-production-f5b3.up.railway.app";
 export const useSocket = () => {
     const [socket, setSocket] = useState<WebSocket | null>(null);
     const wsRef = useRef<WebSocket | null>(null);
-    const { user } = useUser();
+    const { user, isLoaded } = useUser();
+    
+    console.log('[useSocket] Clerk state:', { isLoaded, user: !!user, userId: user?.id });
 
     useEffect(() => {
-        // Only create a new WebSocket if one doesn't exist
-        if (!wsRef.current) {
+        // Only create a new WebSocket if one doesn't exist and Clerk is loaded
+        if (!wsRef.current && isLoaded) {
             console.log("Creating new WebSocket connection");
             const ws = new WebSocket(WS_URL);
             wsRef.current = ws;
@@ -51,7 +53,7 @@ export const useSocket = () => {
                 setSocket(null);
             }
         }
-    }, [user]);
+    }, [user, isLoaded]);
 
     return socket;  
 } 
