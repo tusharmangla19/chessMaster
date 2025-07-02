@@ -9,9 +9,12 @@ const state_manager_1 = require("./state-manager");
 // ... move all game resumption logic here ...
 // Export all these functions 
 async function resumeActiveGameForUser(state, ws) {
-    if (!ws.userId)
+    if (!ws.userId) {
+        console.log('❌ No userId for game resume check');
         return;
+    }
     try {
+        console.log('🔍 Checking for active games for userId:', ws.userId);
         const dbGame = await prisma_1.prisma.game.findFirst({
             where: {
                 status: 'ACTIVE',
@@ -22,13 +25,16 @@ async function resumeActiveGameForUser(state, ws) {
             }
         });
         if (!dbGame) {
+            console.log('📭 No active game found, sending no_game_to_resume');
             (0, utils_1.safeSend)(ws, { type: 'no_game_to_resume' });
             return;
         }
+        console.log('🎮 Found active game:', dbGame.id);
         await resumeGame(state, ws, dbGame);
     }
     catch (error) {
-        // Handle error silently
+        console.error('❌ Error in resumeActiveGameForUser:', error);
+        (0, utils_1.safeSend)(ws, { type: 'error', payload: { message: 'Failed to check for active games' } });
     }
 }
 async function resumeGame(state, ws, dbGame) {

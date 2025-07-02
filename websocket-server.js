@@ -13,20 +13,35 @@ wss.on('connection', (ws) => {
         try {
             const msg = JSON.parse(data);
             if (!authenticated && msg.type === 'auth' && msg.clerkId) {
-                // Upsert user in DB
-                const user = await prisma.user.upsert({
-                    where: { clerkId: msg.clerkId },
-                    update: {},
-                    create: { clerkId: msg.clerkId }
-                });
-                ws.clerkId = msg.clerkId;
-                ws.userId = user.id;
-                authenticated = true;
-                addUser(state, ws);
-                setupMessageHandler(state, ws);
-                // Resume any active game for this user
-                await resumeActiveGameForUser(state, ws);
-                return;
+                console.log('🔐 Authentication attempt for clerkId:', msg.clerkId);
+                try {
+                    // Upsert user in DB
+                    const user = await prisma.user.upsert({
+                        where: { clerkId: msg.clerkId },
+                        update: {},
+                        create: { clerkId: msg.clerkId }
+                    });
+                    console.log('✅ User authenticated:', user.id);
+                    ws.clerkId = msg.clerkId;
+                    ws.userId = user.id;
+                    authenticated = true;
+                    addUser(state, ws);
+                    setupMessageHandler(state, ws);
+                    // Resume any active game for this user
+                    console.log('🔄 Checking for active games...');
+                    try {
+                        await resumeActiveGameForUser(state, ws);
+                    } catch (error) {
+                        console.error('❌ Error in resumeActiveGameForUser:', error);
+                        // Fallback: send no_game_to_resume if there's an error
+                        ws.send(JSON.stringify({ type: 'no_game_to_resume' }));
+                    }
+                    console.log('✅ Authentication and game check completed');
+                    return;
+                } catch (error) {
+                    console.error('❌ Authentication error:', error);
+                    ws.send(JSON.stringify({ type: 'error', payload: { message: 'Authentication failed' } }));
+                }
             }
             if (!authenticated) {
                 // Ignore all other messages until authenticated

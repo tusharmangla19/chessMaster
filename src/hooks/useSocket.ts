@@ -17,10 +17,15 @@ export const useSocket = () => {
             
             ws.onopen = () => {
                 console.log("WebSocket connected");
+                console.log("User available:", !!user);
+                console.log("User ID:", user?.id);
                 setSocket(ws);
                 // Send Clerk user ID as auth message
                 if (user?.id) {
+                    console.log("Sending auth message with clerkId:", user.id);
                     ws.send(JSON.stringify({ type: 'auth', clerkId: user.id }));
+                } else {
+                    console.log("No user ID available, cannot send auth message");
                 }
             }
 

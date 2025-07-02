@@ -9,8 +9,12 @@ import { disconnectTimeouts } from './state-manager';
 // Export all these functions 
 
 export async function resumeActiveGameForUser(state: GameState, ws: WebSocketWithUserId): Promise<void> {
-    if (!ws.userId) return;
+    if (!ws.userId) {
+        console.log('❌ No userId for game resume check');
+        return;
+    }
     try {
+        console.log('🔍 Checking for active games for userId:', ws.userId);
         const dbGame = await prisma.game.findFirst({
             where: {
                 status: 'ACTIVE',
@@ -21,12 +25,15 @@ export async function resumeActiveGameForUser(state: GameState, ws: WebSocketWit
             }
         });
         if (!dbGame) {
+            console.log('📭 No active game found, sending no_game_to_resume');
             safeSend(ws, { type: 'no_game_to_resume' });
             return;
         }
+        console.log('🎮 Found active game:', dbGame.id);
         await resumeGame(state, ws, dbGame);
     } catch (error) {
-        // Handle error silently
+        console.error('❌ Error in resumeActiveGameForUser:', error);
+        safeSend(ws, { type: 'error', payload: { message: 'Failed to check for active games' } });
     }
 }
 

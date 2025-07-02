@@ -174,6 +174,7 @@ export const useGameMessages = ({
                 break;
 
             case MESSAGE_TYPES.NO_GAME_TO_RESUME:
+                console.log('[GameMessages] Handling NO_GAME_TO_RESUME');
                 setHasCheckedResume(true);
                 stopLoading();
                 break;
@@ -191,12 +192,16 @@ export const useGameMessages = ({
             try {
                 const message = JSON.parse(event.data);
                 console.log('[WebSocket] Received message from server:', message);
+                console.log('[WebSocket] Message type:', message.type);
                 if (ALL_VIDEO_TYPES.includes(message.type)) {
+                    console.log('[WebSocket] Handling video message');
                     handleVideoCallMessage(message);
                 } else {
+                    console.log('[WebSocket] Handling game message');
                     handleGameMessage(message);
                 }
             } catch (error) {
+                console.error('[WebSocket] Error processing message:', error);
                 showTemporaryError("Error processing server message");
             }
         };
