@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Chess } from 'chess.js';
-import { GameState, GameActions, GameMode, PlayerColor } from './types';
+import { GameState, GameActions, GameMode, PlayerColor, AIDifficulty } from './types';
 
 export const useGameState = (): GameState & GameActions => {
     const [gameMode, setGameMode] = useState<GameMode>('menu');
@@ -17,6 +17,8 @@ export const useGameState = (): GameState & GameActions => {
     const [isLoading, setIsLoading] = useState(true);
     const [hasCheckedResume, setHasCheckedResume] = useState(false);
     const [incomingCall, setIncomingCall] = useState<{ callId: string; from: string } | null>(null);
+    const [boardFen, setBoardFen] = useState<string>('');
+    const [selectedDifficulty, setSelectedDifficulty] = useState<AIDifficulty | null>(null);
 
     // Refs
     const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -82,6 +84,8 @@ export const useGameState = (): GameState & GameActions => {
         setOpponentDisconnected(false);
         setDisconnectTimer(0);
         clearDisconnectTimer();
+        setBoardFen('');
+        setSelectedDifficulty(null);
     };
 
     const stopLoading = () => {
@@ -106,6 +110,8 @@ export const useGameState = (): GameState & GameActions => {
         isLoading,
         hasCheckedResume,
         incomingCall,
+        boardFen,
+        selectedDifficulty,
 
         // Actions
         setGameMode,
@@ -127,5 +133,7 @@ export const useGameState = (): GameState & GameActions => {
         clearDisconnectTimer,
         startDisconnectTimer,
         stopLoading,
+        setBoardFen,
+        setSelectedDifficulty,
     };
 }; 

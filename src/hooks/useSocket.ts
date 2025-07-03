@@ -1,7 +1,10 @@
 import { useEffect, useState, useRef } from "react"
 import { useUser } from '@clerk/nextjs';
 
-const WS_URL = "wss://chessmasterbackend-production-f5b3.up.railway.app";
+// Use local server for development
+const WS_URL = process.env.NODE_ENV === 'production' 
+    ? "wss://chessmasterbackend-production-f5b3.up.railway.app"
+    : "ws://localhost:8081";
 
 export const useSocket = () => {
     const [socket, setSocket] = useState<WebSocket | null>(null);
@@ -13,7 +16,7 @@ export const useSocket = () => {
     useEffect(() => {
         // Only create a new WebSocket if one doesn't exist and Clerk is loaded
         if (!wsRef.current && isLoaded) {
-            console.log("Creating new WebSocket connection");
+            console.log("Creating new WebSocket connection to:", WS_URL);
             const ws = new WebSocket(WS_URL);
             wsRef.current = ws;
             

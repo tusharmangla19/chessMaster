@@ -36,6 +36,7 @@ export const ALL_VIDEO_TYPES = Object.values(VIDEO_MESSAGE_TYPES);
 
 export type GameMode = 'menu' | 'single_player' | 'multiplayer' | 'room_creator' | 'room_joiner';
 export type PlayerColor = 'white' | 'black' | null;
+export type AIDifficulty = 'easy' | 'medium' | 'hard';
 
 export interface GameState {
     gameMode: GameMode;
@@ -52,6 +53,8 @@ export interface GameState {
     isLoading: boolean;
     hasCheckedResume: boolean;
     incomingCall: { callId: string; from: string } | null;
+    boardFen: string;
+    selectedDifficulty: AIDifficulty | null;
 }
 
 export interface GameActions {
@@ -74,4 +77,6 @@ export interface GameActions {
     clearDisconnectTimer: () => void;
     startDisconnectTimer: () => void;
     stopLoading: () => void;
+    setBoardFen: (fen: string) => void;
+    setSelectedDifficulty: (difficulty: AIDifficulty | null) => void;
 } 

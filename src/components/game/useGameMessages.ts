@@ -34,7 +34,8 @@ export const useGameMessages = ({
         clearDisconnectTimer,
         startDisconnectTimer,
         setIncomingCall,
-        setHasCheckedResume
+        setHasCheckedResume,
+        setBoardFen // Add this new action
     } = gameActions;
 
     const handleVideoCallMessage = (message: any) => {
@@ -61,13 +62,22 @@ export const useGameMessages = ({
                 setPlayerColor(message.payload.color);
                 setWaitingForOpponent(false);
                 setHasCheckedResume(true);
+                // Set initial board FEN
+                setBoardFen(chessRef.current.fen());
                 break;
 
             case MESSAGE_TYPES.MOVE:
                 try {
+                    console.log('[GameMessages] Processing move:', message.payload.move);
                     chessRef.current.move(message.payload.move);
                     setMoveCount((prev: number) => prev + 1);
+                    
+                    // THIS IS THE KEY FIX: Update the board FEN state to trigger UI re-render
+                    setBoardFen(chessRef.current.fen());
+                    
+                    console.log('[GameMessages] Move applied, new FEN:', chessRef.current.fen());
                 } catch (error) {
+                    console.error('[GameMessages] Error applying move:', error);
                     showTemporaryError("Error applying move from server");
                 }
                 break;
@@ -94,9 +104,16 @@ export const useGameMessages = ({
                 setWaitingForOpponent(!!waitingForOpponent);
                 setOpponentConnected(!!opponentConnected);
                 setMoveCount(moveHistory ? moveHistory.length : 0);
-                setGameMode('multiplayer');
+                
+                // Determine game mode based on opponent presence
+                // If no opponent connected and not waiting for opponent, it's single player
+                const gameMode = (!opponentConnected && !waitingForOpponent) ? 'single_player' : 'multiplayer';
+                setGameMode(gameMode);
+                
                 stopLoading();
                 setHasCheckedResume(true);
+                // Update board FEN after resume
+                setBoardFen(chessRef.current.fen());
                 break;
 
             case MESSAGE_TYPES.GAME_OVER:
@@ -134,6 +151,8 @@ export const useGameMessages = ({
                 setWaitingForOpponent(false);
                 stopLoading();
                 setHasCheckedResume(true);
+                // Set initial board FEN for room games
+                setBoardFen(chessRef.current.fen());
                 break;
 
             case MESSAGE_TYPES.OPPONENT_LEFT:
@@ -168,7 +187,6 @@ export const useGameMessages = ({
                 break;
 
             case MESSAGE_TYPES.MATCHMAKING_CANCELLED:
-                // Server confirmed matchmaking was cancelled
                 stopLoading();
                 setHasCheckedResume(true);
                 break;
@@ -206,4 +224,4 @@ export const useGameMessages = ({
             }
         };
     }, [socket, handleVideoMessage]);
-}; 
+};

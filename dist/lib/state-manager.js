@@ -198,33 +198,43 @@ function validateAuthentication(socket) {
     return socketWithUserId;
 }
 async function handleMessage(state, socket, data) {
-    const message = JSON.parse(data.toString());
-    if ([game_1.VIDEO_CALL_REQUEST, game_1.VIDEO_CALL_ACCEPTED, game_1.VIDEO_CALL_REJECTED, game_1.VIDEO_CALL_ENDED, game_1.VIDEO_OFFER, game_1.VIDEO_ANSWER, game_1.ICE_CANDIDATE].includes(message.type)) {
-        (0, video_call_handler_1.handleVideoCallMessage)(state, socket, message);
-        return;
+    try {
+        const message = JSON.parse(data.toString());
+        if ([game_1.VIDEO_CALL_REQUEST, game_1.VIDEO_CALL_ACCEPTED, game_1.VIDEO_CALL_REJECTED, game_1.VIDEO_CALL_ENDED, game_1.VIDEO_OFFER, game_1.VIDEO_ANSWER, game_1.ICE_CANDIDATE].includes(message.type)) {
+            (0, video_call_handler_1.handleVideoCallMessage)(state, socket, message);
+            return;
+        }
+        switch (message.type) {
+            case game_1.INIT_GAME:
+                await (0, game_creation_1.handleInitGame)(state, socket);
+                break;
+            case game_1.SINGLE_PLAYER:
+                const difficulty = message.payload?.difficulty || 'medium';
+                await (0, game_creation_1.handleSinglePlayer)(state, socket, difficulty);
+                break;
+            case game_1.CREATE_ROOM:
+                (0, game_creation_1.handleCreateRoom)(state, socket);
+                break;
+            case game_1.JOIN_ROOM:
+                await (0, game_creation_1.handleJoinRoom)(state, socket, message.payload.roomId);
+                break;
+            case game_1.MOVE:
+                await (0, move_handler_1.handleMove)(state, socket, message.payload.move);
+                break;
+            case game_1.CANCEL_MATCHMAKING:
+                (0, game_end_1.handleCancelMatchmaking)(state, socket);
+                break;
+            case 'END_GAME':
+                await (0, game_end_1.handleEndGame)(state, socket);
+                break;
+            default:
+                console.warn('[MessageHandler] Unknown message type:', message.type);
+                break;
+        }
     }
-    switch (message.type) {
-        case game_1.INIT_GAME:
-            await (0, game_creation_1.handleInitGame)(state, socket);
-            break;
-        case game_1.SINGLE_PLAYER:
-            (0, game_creation_1.handleSinglePlayer)(state, socket);
-            break;
-        case game_1.CREATE_ROOM:
-            (0, game_creation_1.handleCreateRoom)(state, socket);
-            break;
-        case game_1.JOIN_ROOM:
-            await (0, game_creation_1.handleJoinRoom)(state, socket, message.payload.roomId);
-            break;
-        case game_1.MOVE:
-            await (0, move_handler_1.handleMove)(state, socket, message.payload.move);
-            break;
-        case game_1.CANCEL_MATCHMAKING:
-            (0, game_end_1.handleCancelMatchmaking)(state, socket);
-            break;
-        case 'END_GAME':
-            await (0, game_end_1.handleEndGame)(state, socket);
-            break;
+    catch (error) {
+        console.error('[MessageHandler] Error in handleMessage:', error);
+        // Don't re-throw to prevent server crash
     }
 }
 function setupMessageHandler(state, socket) {

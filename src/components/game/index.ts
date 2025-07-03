@@ -15,4 +15,5 @@ export { GameOverStatus } from './GameOverStatus';
 export { VideoCallDisplay } from './VideoCallDisplay';
 export { GameNotifications } from './GameNotifications';
 export { GameBoard } from './GameBoard';
-export { LoadingScreen } from './LoadingScreen'; 
+export { LoadingScreen } from './LoadingScreen';
+export { DifficultySelector } from './DifficultySelector'; 

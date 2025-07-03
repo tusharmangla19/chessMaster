@@ -21,6 +21,7 @@ export declare const VIDEO_CALL_ENDED = "video_call_ended";
 export declare const VIDEO_OFFER = "video_offer";
 export declare const VIDEO_ANSWER = "video_answer";
 export declare const ICE_CANDIDATE = "ice_candidate";
+export type AIDifficulty = 'easy' | 'medium' | 'hard';
 export interface Move {
     from: string;
     to: string;
@@ -49,6 +50,8 @@ export interface SinglePlayerGame {
     player: ServerWebSocket;
     board: Chess;
     startTime: Date;
+    difficulty: AIDifficulty;
+    dbId?: string;
 }
 export interface GameState {
     games: MultiplayerGame[];
@@ -56,6 +59,15 @@ export interface GameState {
     pendingUser: ServerWebSocket | null;
     users: ServerWebSocket[];
     rooms: Map<string, GameRoom>;
+}
+export interface SinglePlayerPayload {
+    difficulty?: AIDifficulty;
+}
+export interface MovePayload {
+    move: Move;
+}
+export interface ErrorPayload {
+    message: string;
 }
 export interface VideoCallMessage {
     type: string;

@@ -27,6 +27,9 @@ export const VIDEO_OFFER = "video_offer";
 export const VIDEO_ANSWER = "video_answer";
 export const ICE_CANDIDATE = "ice_candidate";
 
+// AI difficulty levels
+export type AIDifficulty = 'easy' | 'medium' | 'hard';
+
 // Game state interfaces
 export interface Move {
     from: string;
@@ -60,6 +63,8 @@ export interface SinglePlayerGame {
     player: ServerWebSocket;
     board: Chess;
     startTime: Date;
+    difficulty: AIDifficulty;
+    dbId?: string; // Database ID for persistence
 }
 
 export interface GameState {
@@ -68,6 +73,19 @@ export interface GameState {
     pendingUser: ServerWebSocket | null;
     users: ServerWebSocket[];
     rooms: Map<string, GameRoom>;
+}
+
+// Message payload interfaces
+export interface SinglePlayerPayload {
+    difficulty?: AIDifficulty;
+}
+
+export interface MovePayload {
+    move: Move;
+}
+
+export interface ErrorPayload {
+    message: string;
 }
 
 // Video call interfaces
@@ -91,4 +109,4 @@ export interface VideoCall {
 export interface WebSocketWithUserId extends ServerWebSocket {
     userId?: string;
     clerkId?: string;
-} 
+}

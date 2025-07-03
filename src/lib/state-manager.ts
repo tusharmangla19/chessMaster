@@ -193,33 +193,44 @@ export function validateAuthentication(socket: ServerWebSocket): WebSocketWithUs
 }
 
 export async function handleMessage(state: GameState & { videoCalls: Map<string, VideoCall> }, socket: ServerWebSocket, data: any): Promise<void> {
-    const message = JSON.parse(data.toString());
-    if ([VIDEO_CALL_REQUEST, VIDEO_CALL_ACCEPTED, VIDEO_CALL_REJECTED, VIDEO_CALL_ENDED, VIDEO_OFFER, VIDEO_ANSWER, ICE_CANDIDATE].includes(message.type)) {
-        handleVideoCallMessage(state, socket, message);
-        return;
-    }
-    switch (message.type) {
-        case INIT_GAME:
-            await handleInitGame(state, socket as WebSocketWithUserId);
-            break;
-        case SINGLE_PLAYER:
-            handleSinglePlayer(state, socket);
-            break;
-        case CREATE_ROOM:
-            handleCreateRoom(state, socket);
-            break;
-        case JOIN_ROOM:
-            await handleJoinRoom(state, socket as WebSocketWithUserId, message.payload.roomId);
-            break;
-        case MOVE:
-            await handleMove(state, socket, message.payload.move);
-            break;
-        case CANCEL_MATCHMAKING:
-            handleCancelMatchmaking(state, socket);
-            break;
-        case 'END_GAME':
-            await handleEndGame(state, socket);
-            break;
+    try {
+        const message = JSON.parse(data.toString());
+        
+        if ([VIDEO_CALL_REQUEST, VIDEO_CALL_ACCEPTED, VIDEO_CALL_REJECTED, VIDEO_CALL_ENDED, VIDEO_OFFER, VIDEO_ANSWER, ICE_CANDIDATE].includes(message.type)) {
+            handleVideoCallMessage(state, socket, message);
+            return;
+        }
+        
+        switch (message.type) {
+            case INIT_GAME:
+                await handleInitGame(state, socket as WebSocketWithUserId);
+                break;
+            case SINGLE_PLAYER:
+                const difficulty = message.payload?.difficulty || 'medium';
+                await handleSinglePlayer(state, socket, difficulty);
+                break;
+            case CREATE_ROOM:
+                handleCreateRoom(state, socket);
+                break;
+            case JOIN_ROOM:
+                await handleJoinRoom(state, socket as WebSocketWithUserId, message.payload.roomId);
+                break;
+            case MOVE:
+                await handleMove(state, socket, message.payload.move);
+                break;
+            case CANCEL_MATCHMAKING:
+                handleCancelMatchmaking(state, socket);
+                break;
+            case 'END_GAME':
+                await handleEndGame(state, socket);
+                break;
+            default:
+                console.warn('[MessageHandler] Unknown message type:', message.type);
+                break;
+        }
+    } catch (error: any) {
+        console.error('[MessageHandler] Error in handleMessage:', error);
+        // Don't re-throw to prevent server crash
     }
 }
 

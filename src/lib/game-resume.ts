@@ -23,7 +23,7 @@ export async function resumeActiveGameForUser(state: GameState, ws: WebSocketWit
                     { playerBlackId: ws.userId }
                 ]
             }
-        });
+        }) as any;
         if (!dbGame) {
             console.log('📭 No active game found, sending no_game_to_resume');
             safeSend(ws, { type: 'no_game_to_resume' });
@@ -68,37 +68,56 @@ async function resumeGame(state: GameState, ws: WebSocketWithUserId, dbGame: any
         const opponentSocket = state.users.find(u => 
             (u as WebSocketWithUserId).userId === opponentUserId
         ) as WebSocketWithUserId | undefined;
-        let inMemoryGame = state.games.find(g => g.dbId === dbGame.id);
-        if (!inMemoryGame) {
-            inMemoryGame = {
-                player1: isCurrentPlayerWhite ? ws : (opponentSocket ?? null),
-                player2: !isCurrentPlayerWhite ? ws : (opponentSocket ?? null),
-                board: chess,
-                startTime: dbGame.createdAt,
-                moveCount: dbMoves.length,
-                dbId: dbGame.id,
-                waitingForOpponent: !opponentSocket
-            };
-            state.games.push(inMemoryGame);
-        } else {
-            if (isCurrentPlayerWhite) {
-                inMemoryGame.player1 = ws;
+        
+        // Check if this is a single player game
+        const isSinglePlayer = dbGame.gameType === 'SINGLE_PLAYER';
+        
+        if (isSinglePlayer) {
+            // Handle single player game resumption
+            let inMemoryGame = state.singlePlayerGames.find(g => g.dbId === dbGame.id);
+            if (!inMemoryGame) {
+                inMemoryGame = {
+                    player: ws,
+                    board: chess,
+                    startTime: dbGame.createdAt,
+                    difficulty: dbGame.difficulty as 'easy' | 'medium' | 'hard',
+                    dbId: dbGame.id
+                };
+                state.singlePlayerGames.push(inMemoryGame);
             } else {
-                inMemoryGame.player2 = ws;
+                inMemoryGame.player = ws;
+                inMemoryGame.board = chess;
             }
-            inMemoryGame.waitingForOpponent = !opponentSocket;
+        } else {
+            // Handle multiplayer game resumption
+            let inMemoryGame = state.games.find(g => g.dbId === dbGame.id);
+            if (!inMemoryGame) {
+                inMemoryGame = {
+                    player1: isCurrentPlayerWhite ? ws : (opponentSocket ?? null),
+                    player2: !isCurrentPlayerWhite ? ws : (opponentSocket ?? null),
+                    board: chess,
+                    startTime: dbGame.createdAt,
+                    moveCount: dbMoves.length,
+                    dbId: dbGame.id,
+                    waitingForOpponent: !opponentSocket
+                };
+                state.games.push(inMemoryGame);
+            } else {
+                if (isCurrentPlayerWhite) {
+                    inMemoryGame.player1 = ws;
+                } else {
+                    inMemoryGame.player2 = ws;
+                }
+                inMemoryGame.waitingForOpponent = !opponentSocket;
+            }
         }
+        // Handle disconnect timeouts and opponent reconnection
         if (disconnectTimeouts.has(dbGame.id)) {
             clearTimeout(disconnectTimeouts.get(dbGame.id));
             disconnectTimeouts.delete(dbGame.id);
         }
-        if (isCurrentPlayerWhite) {
-            inMemoryGame.player1 = ws;
-        } else {
-            inMemoryGame.player2 = ws;
-        }
-        inMemoryGame.waitingForOpponent = !opponentSocket;
-        if (opponentSocket?.readyState === 1) {
+        
+        if (!isSinglePlayer && opponentSocket?.readyState === 1) {
             safeSend(opponentSocket, { type: 'opponent_reconnected' });
         }
         const playerColor = isCurrentPlayerWhite ? 'white' : 'black';
@@ -109,7 +128,7 @@ async function resumeGame(state: GameState, ws: WebSocketWithUserId, dbGame: any
                 fen: chess.fen(),
                 moveHistory,
                 opponentConnected: !!opponentSocket,
-                waitingForOpponent: !opponentSocket
+                waitingForOpponent: isSinglePlayer ? false : !opponentSocket
             }
         });
     } catch (error) {

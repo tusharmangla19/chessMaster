@@ -37,12 +37,29 @@ async function createMultiplayerGame(state: GameState, player1: WebSocketWithUse
     (player2 as any).send(JSON.stringify({ type: INIT_GAME, payload: { color: 'black' } }));
 }
 
-export function handleSinglePlayer(state: GameState, socket: ServerWebSocket): void {
+export async function handleSinglePlayer(state: GameState, socket: ServerWebSocket, difficulty: string = 'medium'): Promise<void> {
     if (!validateAuthentication(socket)) return;
+    
+    // Validate difficulty level
+    const validDifficulties = ['easy', 'medium', 'hard'];
+    const selectedDifficulty = validDifficulties.includes(difficulty) ? difficulty : 'medium';
+    
+    // Create database record for single player game
+    const dbGame = await prisma.game.create({
+        data: {
+            gameType: 'SINGLE_PLAYER',
+            status: 'ACTIVE',
+            playerWhiteId: (socket as any).userId, // Player is always white in single player
+            difficulty: selectedDifficulty
+        }
+    });
+    
     const game: SinglePlayerGame = {
         player: socket,
         board: new Chess(),
-        startTime: new Date()
+        startTime: new Date(),
+        difficulty: selectedDifficulty as 'easy' | 'medium' | 'hard',
+        dbId: dbGame.id
     };
     state.singlePlayerGames.push(game);
     socket.send(JSON.stringify({

@@ -24,10 +24,12 @@ model User {
 model Game {
   id            String   @id @default(cuid())
   status        GameStatus
+  gameType      GameType @default(MULTIPLAYER)
   playerWhite   User?    @relation("WhitePlayer", fields: [playerWhiteId], references: [id])
   playerWhiteId String?
   playerBlack   User?    @relation("BlackPlayer", fields: [playerBlackId], references: [id])
   playerBlackId String?
+  difficulty    String?  // For single player games: 'easy', 'medium', 'hard'
   moves         Move[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -37,6 +39,11 @@ enum GameStatus {
   ACTIVE
   COMPLETED
   ABANDONED
+}
+
+enum GameType {
+  SINGLE_PLAYER
+  MULTIPLAYER
 }
 
 model Move {

@@ -1,4 +1,4 @@
-import { MESSAGE_TYPES } from './types';
+import { MESSAGE_TYPES, AIDifficulty } from './types';
 import { GameActions } from './types';
 
 interface UseGameActionsProps {
@@ -19,9 +19,12 @@ export const useGameActions = ({
         resetGame
     } = gameActions;
 
-    const startSinglePlayer = () => {
+    const startSinglePlayer = (difficulty: AIDifficulty) => {
         if (socket) {
-            socket.send(JSON.stringify({ type: MESSAGE_TYPES.SINGLE_PLAYER }));
+            socket.send(JSON.stringify({ 
+                type: MESSAGE_TYPES.SINGLE_PLAYER,
+                payload: { difficulty }
+            }));
             setGameMode('single_player');
         }
     };
@@ -30,6 +33,8 @@ export const useGameActions = ({
         if (socket) {
             socket.send(JSON.stringify({ type: MESSAGE_TYPES.INIT_GAME }));
             setGameMode('multiplayer');
+            // Set waiting state immediately to prevent brief board flash
+            gameActions.setWaitingForOpponent(true);
         }
     };
 

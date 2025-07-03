@@ -14,14 +14,21 @@ interface ChessBoardProps {
     socket: WebSocket;
     playerColor: 'white' | 'black' | null;
     moveCount: number;
+    boardFen: string;
     isVideoCallActive?: boolean;
     disableMoves?: boolean;
     setErrorMessage?: (msg: string) => void;
 }
 
-export const ChessBoard: React.FC<ChessBoardProps> = ({ chess, socket, moveCount, isVideoCallActive = false, disableMoves = false, setErrorMessage, playerColor }) => {
+export const ChessBoard: React.FC<ChessBoardProps> = ({ chess, socket, moveCount, boardFen, isVideoCallActive = false, disableMoves = false, setErrorMessage, playerColor }) => {
     const [from, setFrom] = useState<null | Square>(null);
     const [pendingPromotion, setPendingPromotion] = useState<null | { from: Square, to: Square }>(null);
+    const [boardPosition, setBoardPosition] = useState(chess.fen());
+    
+    // Update board position when boardFen changes (this forces re-render)
+    useEffect(() => {
+        setBoardPosition(chess.fen());
+    }, [boardFen, chess]);
 
     // Listen for error messages from the server
     // Only attach once per socket instance
@@ -49,13 +56,13 @@ export const ChessBoard: React.FC<ChessBoardProps> = ({ chess, socket, moveCount
             console.error("Error calculating moves for UI:", error);
             return [];
         }
-    }, [from, chess, moveCount]);
+    }, [from, chess, boardFen]);
 
     // Get the last move made
     const lastMove = useMemo(() => {
         const history = chess.history({ verbose: true });
         return history.length > 0 ? history[history.length - 1] : null;
-    }, [chess, moveCount]);
+    }, [chess, boardFen]);
 
     const getSquareClass = (squareRepresentation: Square, i: number, j: number) => {
         const squareSize = isVideoCallActive ? 'w-12 h-12 sm:w-16 sm:h-16' : 'w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20';

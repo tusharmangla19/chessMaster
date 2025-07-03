@@ -20,6 +20,7 @@ interface GameBoardProps {
     opponentDisconnected: boolean;
     disconnectTimer: number;
     isGameDisabled: boolean;
+    boardFen: string;
     videoCallState: {
         isInCall: boolean;
         isCallActive: boolean;
@@ -49,6 +50,7 @@ export const GameBoard = ({
     opponentDisconnected,
     disconnectTimer,
     isGameDisabled,
+    boardFen,
     videoCallState,
     localVideoRef,
     remoteVideoRef,
@@ -67,7 +69,7 @@ export const GameBoard = ({
             {/* Desktop Layout */}
             <div className="hidden md:flex gap-4 flex-1">
                 <div className="flex-1 flex justify-center items-start">
-                    {isGameDisabled && (
+                    {isGameDisabled && gameMode === 'multiplayer' && (
                         <div className="p-4 text-center text-lg font-semibold text-yellow-700 bg-yellow-100 rounded-lg mb-4">
                             Waiting for opponent to connect...
                         </div>
@@ -82,6 +84,7 @@ export const GameBoard = ({
                                     socket={socket} 
                                     playerColor={playerColor}
                                     moveCount={moveCount}
+                                    boardFen={boardFen}
                                     isVideoCallActive={videoCallState.isInCall}
                                     disableMoves={isGameDisabled}
                                     setErrorMessage={setErrorMessage}
@@ -155,6 +158,7 @@ export const GameBoard = ({
                                 socket={socket}
                                 playerColor={playerColor}
                                 moveCount={moveCount}
+                                boardFen={boardFen}
                                 isVideoCallActive={videoCallState.isInCall}
                                 disableMoves={isGameDisabled}
                                 setErrorMessage={setErrorMessage}

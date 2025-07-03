@@ -1,4 +1,4 @@
-import type { GameState, ServerWebSocket, Move, MultiplayerGame, SinglePlayerGame } from '../types/game';
+import type { GameState, ServerWebSocket, Move, MultiplayerGame, SinglePlayerGame, AIDifficulty } from '../types/game';
 import { moveRateLimit, checkRateLimit, validateAuthentication, MOVE_RATE_LIMIT_MS } from './state-manager';
 import { Chess } from 'chess.js';
 import { prisma } from './prisma';
@@ -7,31 +7,51 @@ import { MOVE, ERROR, GAME_OVER } from '../types/game';
 import { Prisma } from '@prisma/client';
 
 export async function handleMove(state: GameState, socket: ServerWebSocket, move: Move): Promise<void> {
-    if (!validateAuthentication(socket)) return;
-    const playerId = socket.toString();
-    if (!checkRateLimit(moveRateLimit, playerId, MOVE_RATE_LIMIT_MS)) {
+    try {
+        if (!validateAuthentication(socket)) {
+            return;
+        }
+        
+        const playerId = socket.toString();
+        
+        if (!checkRateLimit(moveRateLimit, playerId, MOVE_RATE_LIMIT_MS)) {
+            safeSend(socket, {
+                type: ERROR,
+                payload: { message: "Move too fast. Please wait a moment." }
+            });
+            return;
+        }
+        
+        // Check for multiplayer game first
+        const multiplayerGame = state.games.find(game => 
+            game.player1 === socket || game.player2 === socket
+        );
+        
+        if (multiplayerGame) {
+            await handleMultiplayerMove(state, multiplayerGame, socket, move);
+            return;
+        }
+        
+        // Check for single player game
+        const singlePlayerGame = state.singlePlayerGames.find(game => game.player === socket);
+        
+        if (singlePlayerGame) {
+            await handleSinglePlayerMove(state, singlePlayerGame, socket, move);
+            return;
+        }
+        
         safeSend(socket, {
             type: ERROR,
-            payload: { message: "Move too fast. Please wait a moment." }
+            payload: { message: "No active game found" }
         });
-        return;
+        
+    } catch (error: any) {
+        console.error('[MoveHandler] Error in handleMove:', error);
+        safeSend(socket, {
+            type: ERROR,
+            payload: { message: "Internal server error" }
+        });
     }
-    const multiplayerGame = state.games.find(game => 
-        game.player1 === socket || game.player2 === socket
-    );
-    if (multiplayerGame) {
-        await handleMultiplayerMove(state, multiplayerGame, socket, move);
-        return;
-    }
-    const singlePlayerGame = state.singlePlayerGames.find(game => game.player === socket);
-    if (singlePlayerGame) {
-        handleSinglePlayerMove(singlePlayerGame, socket, move);
-        return;
-    }
-    safeSend(socket, {
-        type: ERROR,
-        payload: { message: "No active game found" }
-    });
 }
 
 async function handleMultiplayerMove(state: GameState, game: MultiplayerGame, socket: ServerWebSocket, move: Move): Promise<void> {
@@ -73,21 +93,7 @@ async function handleMultiplayerMove(state: GameState, game: MultiplayerGame, so
         await checkAndHandleGameOver(state, game);
     } catch (error) {
         console.error('Move processing error:', error);
-        let errorMessage = "Invalid move";
-        if (error instanceof Error) {
-            if (error.message.includes('Invalid move')) {
-                errorMessage = "That move is not allowed in chess";
-            } else if (error.message.includes('promotion')) {
-                errorMessage = "Please select a piece for pawn promotion (Queen, Rook, Bishop, or Knight)";
-            } else if (error.message.includes('turn')) {
-                errorMessage = "It's not your turn to move";
-            } else if (error.message.includes('check')) {
-                errorMessage = "You must move to get out of check";
-            } else if (error.message.includes('database') || error.message.includes('transaction')) {
-                errorMessage = "Game state error. Please try again.";
-            }
-        }
-        safeSend(socket, { type: ERROR, payload: { message: errorMessage } });
+        safeSend(socket, { type: ERROR, payload: { message: "Invalid move" } });
     }
 }
 
@@ -97,9 +103,13 @@ function validatePawnPromotion(board: Chess, move: Move): boolean {
     const isLastRank = (piece?.color === 'w' && move.to[1] === '8') || 
                       (piece?.color === 'b' && move.to[1] === '1');
     if (isPawn && isLastRank) {
-        return move.promotion ? ['q','r','b','n'].includes(move.promotion) : false;
+        return isValidPromotion(move.promotion);
     }
     return true;
+}
+
+function isValidPromotion(promotion: any): promotion is 'q' | 'r' | 'b' | 'n' {
+    return ['q', 'r', 'b', 'n'].includes(promotion);
 }
 
 async function executeMove(game: MultiplayerGame, move: Move, moveResult: any): Promise<void> {
@@ -141,68 +151,265 @@ async function checkAndHandleGameOver(state: GameState, game: MultiplayerGame): 
     state.games = state.games.filter(g => g !== game);
 }
 
-function handleSinglePlayerMove(game: SinglePlayerGame, socket: ServerWebSocket, move: Move): void {
+async function handleSinglePlayerMove(state: GameState, game: SinglePlayerGame, socket: ServerWebSocket, move: Move): Promise<void> {
     try {
-        const piece = game.board.get(move.from as any);
-        const isPawn = piece?.type === 'p';
-        const isLastRank = (piece?.color === 'w' && move.to[1] === '8') || 
-                          (piece?.color === 'b' && move.to[1] === '1');
-        if (isPawn && isLastRank) {
-            if (!move.promotion || !['q','r','b','n'].includes(move.promotion)) {
-                safeSend(socket, {
-                    type: ERROR,
-                    payload: { message: "Pawn promotion required! Please select Queen, Rook, Bishop, or Knight." }
-                });
-                return;
-            }
-        }
-        const legalMoves = game.board.moves({ square: move.from as any, verbose: true });
-        const isLegalMove = legalMoves.some((legalMove: any) => 
-            legalMove.from === move.from && legalMove.to === move.to &&
-            (!isPawn || !isLastRank || legalMove.promotion === move.promotion)
-        );
-        if (!isLegalMove) {
+        // Simple and efficient move validation using chess.js
+        const testBoard = new Chess(game.board.fen());
+        const moveResult = testBoard.move(move);
+        if (!moveResult) {
             safeSend(socket, { type: ERROR, payload: { message: "Illegal move" } });
             return;
         }
+
+        // Save player move to database if game has dbId
+        if (game.dbId) {
+            await prisma.move.create({
+                data: {
+                    gameId: game.dbId,
+                    moveNum: game.board.history().length + 1,
+                    from: move.from,
+                    to: move.to,
+                    san: moveResult.san,
+                    fen: game.board.fen()
+                }
+            });
+        }
+        
         game.board.move(move);
         safeSend(socket, { type: MOVE, payload: { move } });
+
         const gameOverResult = checkGameOver(game.board);
         if (gameOverResult.isOver) {
-            const gameOverMessage = {
-                type: GAME_OVER,
-                payload: { 
-                    winner: gameOverResult.winner,
-                    reason: gameOverResult.reason
-                }
-            };
-            safeSend(game.player, gameOverMessage);
-            // Remove game from single player games
-            // Note: This should be handled by the calling function with proper state access
+            safeSend(socket, { type: GAME_OVER, payload: gameOverResult });
+            state.singlePlayerGames = state.singlePlayerGames.filter(g => g !== game);
+            return;
         }
+
+        // Schedule AI move
+        setTimeout(async () => {
+            try {
+                const aiMove = generateAIMove(game.board, game.difficulty);
+
+                if (aiMove) {
+                    // Save AI move to database if game has dbId
+                    if (game.dbId) {
+                        const testBoard = new Chess(game.board.fen());
+                        const moveResult = testBoard.move(aiMove);
+                        
+                        await prisma.move.create({
+                            data: {
+                                gameId: game.dbId,
+                                moveNum: game.board.history().length + 1,
+                                from: aiMove.from,
+                                to: aiMove.to,
+                                san: moveResult.san,
+                                fen: testBoard.fen()
+                            }
+                        });
+                    }
+                    
+                    // Apply move to game board
+                    game.board.move(aiMove);
+                    safeSend(socket, { type: MOVE, payload: { move: aiMove } });
+
+                    const aiGameOverResult = checkGameOver(game.board);
+                    if (aiGameOverResult.isOver) {
+                        safeSend(socket, { type: GAME_OVER, payload: aiGameOverResult });
+                        state.singlePlayerGames = state.singlePlayerGames.filter(g => g !== game);
+                    }
+                } else {
+                    // No moves available - game might be over
+                    const fallbackGameOver = checkGameOver(game.board);
+                    if (fallbackGameOver.isOver) {
+                        safeSend(socket, { type: GAME_OVER, payload: fallbackGameOver });
+                        state.singlePlayerGames = state.singlePlayerGames.filter(g => g !== game);
+                    }
+                }
+            } catch (error) {
+                console.error('[AI] Error during AI move logic:', error);
+                const fallbackGameOver = checkGameOver(game.board);
+                if (fallbackGameOver.isOver) {
+                    safeSend(socket, { type: GAME_OVER, payload: fallbackGameOver });
+                    state.singlePlayerGames = state.singlePlayerGames.filter(g => g !== game);
+                }
+            }
+        }, getAIThinkingDelay(game.difficulty));
+
     } catch (error) {
-        console.error('Single player move error:', error);
-        let errorMessage = "Invalid move";
-        if (error instanceof Error) {
-            if (error.message.includes('Invalid move')) {
-                errorMessage = "That move is not allowed in chess";
-            } else if (error.message.includes('promotion')) {
-                errorMessage = "Please select a piece for pawn promotion (Queen, Rook, Bishop, or Knight)";
-            } else if (error.message.includes('turn')) {
-                errorMessage = "It's not your turn to move";
-            } else if (error.message.includes('check')) {
-                errorMessage = "You must move to get out of check";
+        console.error('[SinglePlayer] Error during player move processing:', error);
+        safeSend(socket, { type: ERROR, payload: { message: "Invalid move" } });
+    }
+}
+
+function generateAIMove(board: Chess, difficulty: AIDifficulty): Move | null {
+    const possibleMoves = board.moves({ verbose: true });
+    if (possibleMoves.length === 0) return null;
+
+    switch (difficulty) {
+        case 'easy':
+            return generateEasyMove(board, possibleMoves);
+        case 'medium':
+            return generateMediumMove(board, possibleMoves);
+        case 'hard':
+            const hardMove = generateHardMove(board, possibleMoves);
+            return hardMove; // This can now be null
+        default:
+            return generateEasyMove(board, possibleMoves);
+    }
+}
+
+function generateEasyMove(board: Chess, possibleMoves: any[]): Move {
+    const captures = possibleMoves.filter(move => move.captured);
+    const moves = captures.length > 0 && Math.random() < 0.3 ? captures : possibleMoves;
+    const randomMove = moves[Math.floor(Math.random() * moves.length)];
+
+    return {
+        from: randomMove.from,
+        to: randomMove.to,
+        promotion: isValidPromotion(randomMove.promotion) ? randomMove.promotion : undefined
+    };
+}
+
+function generateMediumMove(board: Chess, possibleMoves: any[]): Move {
+    let bestMove = possibleMoves[0];
+    let bestScore = -Infinity;
+
+    for (const move of possibleMoves) {
+        const testBoard = new Chess(board.fen());
+        testBoard.move(move);
+
+        // Evaluate from AI's perspective (black)
+        let score = evaluatePosition(testBoard, true);
+        
+        // Bonus for captures
+        if (move.captured) {
+            score += getPieceValue(move.captured) * 0.5;
+        }
+        
+        // Bonus for giving check
+        if (testBoard.inCheck()) {
+            score += 50;
+        }
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove = move;
+        }
+    }
+
+    return {
+        from: bestMove.from,
+        to: bestMove.to,
+        promotion: isValidPromotion(bestMove.promotion) ? bestMove.promotion : undefined
+    };
+}
+function generateHardMove(board: Chess, possibleMoves: any[]): Move | null {
+    const result = minimaxMove(board, 3, -Infinity, Infinity, true);
+    return result.move;
+}
+
+function minimaxMove(board: Chess, depth: number, alpha: number, beta: number, isMaximizing: boolean): { move: Move | null, score: number } {
+    const possibleMoves = board.moves({ verbose: true });
+
+    if (depth === 0 || possibleMoves.length === 0) {
+        // Fix: Return null move if no moves available, let caller handle it
+        const defaultMove = possibleMoves[0] ? {
+            from: possibleMoves[0].from,
+            to: possibleMoves[0].to,
+            promotion: isValidPromotion(possibleMoves[0].promotion) ? possibleMoves[0].promotion : undefined
+        } : null;
+        return { move: defaultMove, score: evaluatePosition(board) };
+    }
+
+    let bestMove = possibleMoves[0];
+    let bestScore = isMaximizing ? -Infinity : Infinity;
+
+    for (const move of possibleMoves) {
+        const testBoard = new Chess(board.fen());
+        testBoard.move(move);
+        const result = minimaxMove(testBoard, depth - 1, alpha, beta, !isMaximizing);
+
+        if (isMaximizing && result.score > bestScore) {
+            bestScore = result.score;
+            bestMove = move;
+            alpha = Math.max(alpha, bestScore);
+        } else if (!isMaximizing && result.score < bestScore) {
+            bestScore = result.score;
+            bestMove = move;
+            beta = Math.min(beta, bestScore);
+        }
+
+        if (beta <= alpha) break;
+    }
+
+    return {
+        move: bestMove ? {
+            from: bestMove.from,
+            to: bestMove.to,
+            promotion: isValidPromotion(bestMove.promotion) ? bestMove.promotion : undefined
+        } : null,
+        score: bestScore
+    };
+}
+
+function evaluatePosition(board: Chess, forBlack: boolean = true): number {
+    if (board.isCheckmate()) {
+        const winner = board.turn() === 'w' ? 'black' : 'white';
+        if (forBlack) {
+            return winner === 'black' ? 10000 : -10000;
+        } else {
+            return winner === 'white' ? 10000 : -10000;
+        }
+    }
+    
+    if (board.isDraw()) return 0;
+
+    let score = 0;
+    const pieces = board.board();
+    
+    for (let i = 0; i < 8; i++) {
+        for (let j = 0; j < 8; j++) {
+            const piece = pieces[i][j];
+            if (piece) {
+                const value = getPieceValue(piece.type) + getPositionValue(piece.type, i, j, piece.color);
+                if (forBlack) {
+                    // For black AI: black pieces are positive, white pieces are negative
+                    score += piece.color === 'b' ? value : -value;
+                } else {
+                    // For white AI: white pieces are positive, black pieces are negative
+                    score += piece.color === 'w' ? value : -value;
+                }
             }
         }
-        safeSend(socket, { type: ERROR, payload: { message: errorMessage } });
+    }
+
+    // Mobility bonus
+    score += board.moves().length * 0.1 * (forBlack ? 1 : -1);
+    
+    return score;
+}
+function getPieceValue(type: string): number {
+    return { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000 }[type] || 0;
+}
+
+function getPositionValue(type: string, row: number, col: number, color: string): number {
+    const centerDistance = Math.abs(row - 3.5) + Math.abs(col - 3.5);
+    let bonus = (7 - centerDistance) * 2;
+    if (type === 'p') bonus += color === 'w' ? (7 - row) * 5 : row * 5;
+    return bonus;
+}
+
+function getAIThinkingDelay(difficulty: AIDifficulty): number {
+    switch (difficulty) {
+        case 'easy': return 300 + Math.random() * 200;
+        case 'medium': return 800 + Math.random() * 400;
+        case 'hard': return 1500 + Math.random() * 1000;
+        default: return 500;
     }
 }
 
 function checkGameOver(board: Chess): { isOver: boolean; winner: string | null; reason: string } {
-    if (board.isCheckmate()) {
-        const winner = board.turn() === 'w' ? 'black' : 'white';
-        return { isOver: true, winner, reason: 'checkmate' };
-    }
+    if (board.isCheckmate()) return { isOver: true, winner: board.turn() === 'w' ? 'black' : 'white', reason: 'checkmate' };
     if (board.isDraw()) {
         if (board.isStalemate()) return { isOver: true, winner: null, reason: 'stalemate' };
         if (board.isThreefoldRepetition()) return { isOver: true, winner: null, reason: 'threefold_repetition' };
@@ -210,4 +417,4 @@ function checkGameOver(board: Chess): { isOver: boolean; winner: string | null; 
         return { isOver: true, winner: null, reason: 'fifty_move_rule' };
     }
     return { isOver: false, winner: null, reason: '' };
-} 
+}

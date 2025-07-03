@@ -12,10 +12,10 @@ import {
     WaitingScreen,
     GameBoard,
     GameNotifications,
-    LoadingScreen
+    LoadingScreen,
+    DifficultySelector
 } from "./game/index";
-
-
+import { AIDifficulty } from "./game/types";
 
 export const Game = () => {
     const socket = useSocket();
@@ -38,11 +38,14 @@ export const Game = () => {
         isLoading,
         hasCheckedResume,
         incomingCall,
+        boardFen,
+        selectedDifficulty,
         setRoomId,
         setErrorMessage,
         resetGame,
         showTemporaryError,
-        setWaitingForOpponent
+        setWaitingForOpponent,
+        setSelectedDifficulty
     } = gameState;
     
     console.log('[Game Render]', { isLoading, hasCheckedResume, gameMode });
@@ -86,7 +89,9 @@ export const Game = () => {
     });
 
     // Computed values
-    const isGameDisabled = waitingForOpponent || !opponentConnected || opponentDisconnected;
+    const isGameDisabled = gameMode === 'single_player' 
+        ? waitingForOpponent || opponentDisconnected  // For single player: only check waiting and disconnect
+        : waitingForOpponent || !opponentConnected || opponentDisconnected;  // For multiplayer: check all conditions
     const opponentId = 'opponent';
 
     // Video call handlers
@@ -120,6 +125,17 @@ export const Game = () => {
         gameActions.cancelMatchmaking();
     };
 
+    // Difficulty selection handlers
+    const handleDifficultySelect = (difficulty: AIDifficulty) => {
+        setSelectedDifficulty(difficulty);
+        gameActions.startSinglePlayer(difficulty);
+    };
+
+    const handleBackToMenu = () => {
+        gameState.setGameMode('menu');
+        setSelectedDifficulty(null);
+    };
+
     // Loading states - connecting to server
     if (!socket) {
         return <LoadingScreen title="Connecting to Server..." />;
@@ -130,13 +146,23 @@ export const Game = () => {
         return <LoadingScreen title="Loading game..." />;
     }
 
+    // Difficulty selection screen
+    if (gameMode === 'single_player' && !selectedDifficulty && !started) {
+        return (
+            <DifficultySelector
+                onDifficultySelect={handleDifficultySelect}
+                onBack={handleBackToMenu}
+            />
+        );
+    }
+
     // Menu screen
     if (hasCheckedResume && gameMode === 'menu') {
         return (
             <GameMenu
                 roomId={roomId}
                 onRoomIdChange={setRoomId}
-                onStartSinglePlayer={gameActions.startSinglePlayer}
+                onStartSinglePlayer={() => gameState.setGameMode('single_player')}
                 onStartMultiplayer={gameActions.startMultiplayer}
                 onCreateRoom={gameActions.createRoom}
                 onJoinRoom={gameActions.joinRoom}
@@ -146,7 +172,7 @@ export const Game = () => {
     }
 
     // Waiting for opponent screen
-    if (gameMode === 'multiplayer' && !started) {
+    if (waitingForOpponent && !started) {
         return (
             <WaitingScreen
                 createdRoomId={createdRoomId}
@@ -178,6 +204,7 @@ export const Game = () => {
                 opponentDisconnected={opponentDisconnected}
                 disconnectTimer={disconnectTimer}
                 isGameDisabled={isGameDisabled}
+                boardFen={boardFen}
                 videoCallState={videoCallState}
                 localVideoRef={localVideoRef}
                 remoteVideoRef={remoteVideoRef}
