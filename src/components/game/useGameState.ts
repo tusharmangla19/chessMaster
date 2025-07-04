@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Chess } from 'chess.js';
-import { GameState, GameActions, GameMode, PlayerColor, AIDifficulty } from './types';
+import { GameState, GameActions, GameMode, PlayerColor, AIDifficulty, OpponentInfo } from './types';
 
 export const useGameState = (): GameState & GameActions => {
     const [gameMode, setGameMode] = useState<GameMode>('menu');
@@ -19,6 +19,7 @@ export const useGameState = (): GameState & GameActions => {
     const [incomingCall, setIncomingCall] = useState<{ callId: string; from: string } | null>(null);
     const [boardFen, setBoardFen] = useState<string>('');
     const [selectedDifficulty, setSelectedDifficulty] = useState<AIDifficulty | null>(null);
+    const [opponentInfo, setOpponentInfo] = useState<OpponentInfo | null>(null);
 
     // Refs
     const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -86,6 +87,7 @@ export const useGameState = (): GameState & GameActions => {
         clearDisconnectTimer();
         setBoardFen('');
         setSelectedDifficulty(null);
+        setOpponentInfo(null);
     };
 
     const stopLoading = () => {
@@ -112,6 +114,7 @@ export const useGameState = (): GameState & GameActions => {
         incomingCall,
         boardFen,
         selectedDifficulty,
+        opponentInfo,
 
         // Actions
         setGameMode,
@@ -135,5 +138,6 @@ export const useGameState = (): GameState & GameActions => {
         stopLoading,
         setBoardFen,
         setSelectedDifficulty,
+        setOpponentInfo,
     };
 }; 

@@ -5,12 +5,14 @@ interface UseGameActionsProps {
     socket: WebSocket | null;
     gameActions: GameActions;
     roomId: string;
+    endVideoCall: () => void;
 }
 
 export const useGameActions = ({
     socket,
     gameActions,
-    roomId
+    roomId,
+    endVideoCall
 }: UseGameActionsProps) => {
     const {
         setGameMode,
@@ -65,14 +67,16 @@ export const useGameActions = ({
         if (socket) {
             socket.send(JSON.stringify({ type: MESSAGE_TYPES.CANCEL_MATCHMAKING }));
         }
+        endVideoCall();
         resetGame();
     };
 
     const endGame = () => {
         if (socket) {
             socket.send(JSON.stringify({ type: MESSAGE_TYPES.END_GAME }));
-            resetGame();
         }
+        endVideoCall();
+        resetGame();
     };
 
     const copyRoomCode = (createdRoomId: string) => {

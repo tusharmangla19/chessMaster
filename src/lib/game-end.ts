@@ -1,16 +1,47 @@
-import type { GameState, ServerWebSocket } from '../types/game';
+import type { GameState, ServerWebSocket, VideoCall } from '../types/game';
 import { validateAuthentication, disconnectTimeouts } from './state-manager';
 import { prisma } from './prisma';
 import { safeSend } from './utils';
-import { MATCHMAKING_CANCELLED } from '../types/game';
+import { MATCHMAKING_CANCELLED, VIDEO_CALL_ENDED } from '../types/game';
 
 // ... move all game ending and cleanup logic here ...
 // Export all these functions 
+
+// Helper function to cleanup video calls for a socket
+function cleanupVideoCallsForSocket(state: GameState & { videoCalls: Map<string, VideoCall> }, socket: ServerWebSocket): void {
+    if (!('videoCalls' in state)) return;
+    
+    const stateWithVideo = state as GameState & { videoCalls: Map<string, VideoCall> };
+    const callsToDelete: string[] = [];
+    
+    stateWithVideo.videoCalls.forEach((call, callId) => {
+        if (call.initiator === socket || call.receiver === socket) {
+            // Notify the other participant that the call ended
+            const otherParticipant = call.initiator === socket ? call.receiver : call.initiator;
+            if (otherParticipant && otherParticipant.readyState === 1) {
+                safeSend(otherParticipant, {
+                    type: VIDEO_CALL_ENDED,
+                    payload: { callId },
+                    from: 'system',
+                    to: 'you'
+                });
+            }
+            callsToDelete.push(callId);
+        }
+    });
+    
+    // Remove the calls
+    callsToDelete.forEach(callId => {
+        stateWithVideo.videoCalls.delete(callId);
+    });
+}
 
 export async function handleEndGame(state: GameState, socket: ServerWebSocket): Promise<void> {
     if (!validateAuthentication(socket)) return;
     
     try {
+        // Clean up any active video calls for this socket
+        cleanupVideoCallsForSocket(state as GameState & { videoCalls: Map<string, VideoCall> }, socket);
         // Check both arrays at once
         const singlePlayerIdx = state.singlePlayerGames.findIndex(g => g.player === socket);
         const multiplayerIdx = state.games.findIndex(g => g.player1 === socket || g.player2 === socket);

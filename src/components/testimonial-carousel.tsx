@@ -55,7 +55,7 @@ export default function TestimonialCarousel() {
 
   return (
     <div className="relative max-w-4xl mx-auto mt-24">
-      <h2 className="text-3xl font-bold text-center text-purple-700 mb-12">
+      <h2 className="text-3xl font-bold text-center text-white mb-12">
         What Our Players Say
       </h2>
       
@@ -74,15 +74,15 @@ export default function TestimonialCarousel() {
               ))}
             </div>
             
-            <p className="text-lg text-gray-700 text-center mb-6 italic">
+            <p className="text-lg text-white text-center mb-6 italic">
               "{testimonials[currentIndex].content}"
             </p>
             
             <div className="text-center">
-              <h4 className="font-semibold text-purple-700">
+              <h4 className="font-semibold text-purple-300">
                 {testimonials[currentIndex].name}
               </h4>
-              <p className="text-gray-600">{testimonials[currentIndex].role}</p>
+              <p className="text-gray-300">{testimonials[currentIndex].role}</p>
             </div>
           </CardContent>
         </Card>

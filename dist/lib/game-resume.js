@@ -6,6 +6,7 @@ const prisma_1 = require("./prisma");
 const utils_1 = require("./utils");
 const game_1 = require("../types/game");
 const state_manager_1 = require("./state-manager");
+const clerk_server_1 = require("./clerk-server");
 // ... move all game resumption logic here ...
 // Export all these functions 
 async function resumeActiveGameForUser(state, ws) {
@@ -69,6 +70,18 @@ async function resumeGame(state, ws, dbGame) {
         const opponentSocket = state.users.find(u => u.userId === opponentUserId);
         // Check if this is a single player game
         const isSinglePlayer = dbGame.gameType === 'SINGLE_PLAYER';
+        // Fetch opponent info for multiplayer games
+        let opponentInfo = null;
+        if (!isSinglePlayer && opponentSocket?.clerkId) {
+            const opponentClerkInfo = await (0, clerk_server_1.getUserInfo)(opponentSocket.clerkId);
+            if (opponentClerkInfo) {
+                opponentInfo = {
+                    name: (0, clerk_server_1.formatDisplayName)(opponentClerkInfo),
+                    email: opponentClerkInfo.emailAddress,
+                    clerkId: opponentClerkInfo.id
+                };
+            }
+        }
         if (isSinglePlayer) {
             // Handle single player game resumption
             let inMemoryGame = state.singlePlayerGames.find(g => g.dbId === dbGame.id);
@@ -128,7 +141,8 @@ async function resumeGame(state, ws, dbGame) {
                 fen: chess.fen(),
                 moveHistory,
                 opponentConnected: !!opponentSocket,
-                waitingForOpponent: isSinglePlayer ? false : !opponentSocket
+                waitingForOpponent: isSinglePlayer ? false : !opponentSocket,
+                opponentInfo
             }
         });
     }

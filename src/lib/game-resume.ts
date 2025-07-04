@@ -4,6 +4,7 @@ import { prisma } from './prisma';
 import { safeSend } from './utils';
 import { ERROR } from '../types/game';
 import { disconnectTimeouts } from './state-manager';
+import { getUserInfo, formatDisplayName } from './clerk-server';
 
 // ... move all game resumption logic here ...
 // Export all these functions 
@@ -72,6 +73,19 @@ async function resumeGame(state: GameState, ws: WebSocketWithUserId, dbGame: any
         // Check if this is a single player game
         const isSinglePlayer = dbGame.gameType === 'SINGLE_PLAYER';
         
+        // Fetch opponent info for multiplayer games
+        let opponentInfo = null;
+        if (!isSinglePlayer && opponentSocket?.clerkId) {
+            const opponentClerkInfo = await getUserInfo(opponentSocket.clerkId);
+            if (opponentClerkInfo) {
+                opponentInfo = {
+                    name: formatDisplayName(opponentClerkInfo),
+                    email: opponentClerkInfo.emailAddress,
+                    clerkId: opponentClerkInfo.id
+                };
+            }
+        }
+        
         if (isSinglePlayer) {
             // Handle single player game resumption
             let inMemoryGame = state.singlePlayerGames.find(g => g.dbId === dbGame.id);
@@ -128,7 +142,8 @@ async function resumeGame(state: GameState, ws: WebSocketWithUserId, dbGame: any
                 fen: chess.fen(),
                 moveHistory,
                 opponentConnected: !!opponentSocket,
-                waitingForOpponent: isSinglePlayer ? false : !opponentSocket
+                waitingForOpponent: isSinglePlayer ? false : !opponentSocket,
+                opponentInfo
             }
         });
     } catch (error) {

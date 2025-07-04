@@ -1,7 +1,15 @@
-require('dotenv').config();
+require('dotenv').config({ path: '.env.local' });
+require('dotenv').config(); // This loads .env as fallback
 const { WebSocketServer } = require('ws');
 const { createGameState, addUser, removeUser, setupMessageHandler, resumeActiveGameForUser, cleanupAllTimeouts } = require('./dist/lib/state-manager');
 const { prisma } = require('./dist/lib/prisma');
+
+// Debug: Check if CLERK_SECRET_KEY is loaded
+console.log('🔑 CLERK_SECRET_KEY loaded:', process.env.CLERK_SECRET_KEY ? 'YES' : 'NO');
+if (process.env.CLERK_SECRET_KEY) {
+    console.log('🔑 CLERK_SECRET_KEY preview:', process.env.CLERK_SECRET_KEY.substring(0, 10) + '...');
+}
+
 //FINAL TRY
 const wss = new WebSocketServer({ port: process.env.PORT||8081 });
 const state = createGameState();

@@ -9,6 +9,7 @@ interface UseGameMessagesProps {
     gameState: GameState;
     gameActions: GameActions;
     handleVideoMessage: (message: any) => void;
+    endVideoCall: () => void;
 }
 
 export const useGameMessages = ({
@@ -16,7 +17,8 @@ export const useGameMessages = ({
     chessRef,
     gameState,
     gameActions,
-    handleVideoMessage
+    handleVideoMessage,
+    endVideoCall
 }: UseGameMessagesProps) => {
     const {
         setStarted,
@@ -35,7 +37,8 @@ export const useGameMessages = ({
         startDisconnectTimer,
         setIncomingCall,
         setHasCheckedResume,
-        setBoardFen // Add this new action
+        setBoardFen,
+        setOpponentInfo
     } = gameActions;
 
     const handleVideoCallMessage = (message: any) => {
@@ -48,7 +51,7 @@ export const useGameMessages = ({
             });
         }
         
-        if ([VIDEO_MESSAGE_TYPES.VIDEO_CALL_ACCEPTED, VIDEO_MESSAGE_TYPES.VIDEO_CALL_REJECTED].includes(message.type)) {
+        if ([VIDEO_MESSAGE_TYPES.VIDEO_CALL_ACCEPTED, VIDEO_MESSAGE_TYPES.VIDEO_CALL_REJECTED, VIDEO_MESSAGE_TYPES.VIDEO_CALL_ENDED].includes(message.type)) {
             setIncomingCall(null);
         }
     };
@@ -62,6 +65,10 @@ export const useGameMessages = ({
                 setPlayerColor(message.payload.color);
                 setWaitingForOpponent(false);
                 setHasCheckedResume(true);
+                // Set opponent info if provided
+                if (message.payload.opponentInfo) {
+                    setOpponentInfo(message.payload.opponentInfo);
+                }
                 // Set initial board FEN
                 setBoardFen(chessRef.current.fen());
                 break;
@@ -83,7 +90,7 @@ export const useGameMessages = ({
                 break;
 
             case MESSAGE_TYPES.RESUME_GAME:
-                const { color, fen, moveHistory, opponentConnected, waitingForOpponent } = message.payload;
+                const { color, fen, moveHistory, opponentConnected, waitingForOpponent, opponentInfo } = message.payload;
                 const chess = new Chess();
                 
                 if (fen) {
@@ -105,6 +112,11 @@ export const useGameMessages = ({
                 setOpponentConnected(!!opponentConnected);
                 setMoveCount(moveHistory ? moveHistory.length : 0);
                 
+                // Set opponent info if provided
+                if (opponentInfo) {
+                    setOpponentInfo(opponentInfo);
+                }
+                
                 // Determine game mode based on opponent presence
                 // If no opponent connected and not waiting for opponent, it's single player
                 const gameMode = (!opponentConnected && !waitingForOpponent) ? 'single_player' : 'multiplayer';
@@ -123,6 +135,8 @@ export const useGameMessages = ({
                     : `Game Over! Draw by ${reason}!`;
                 showTemporaryError(gameOverMessage);
                 stopLoading();
+                // Clean up video call when game ends
+                endVideoCall();
                 break;
 
             case MESSAGE_TYPES.ERROR:
@@ -151,12 +165,18 @@ export const useGameMessages = ({
                 setWaitingForOpponent(false);
                 stopLoading();
                 setHasCheckedResume(true);
+                // Set opponent info if provided
+                if (message.payload.opponentInfo) {
+                    setOpponentInfo(message.payload.opponentInfo);
+                }
                 // Set initial board FEN for room games
                 setBoardFen(chessRef.current.fen());
                 break;
 
             case MESSAGE_TYPES.OPPONENT_LEFT:
                 showTemporaryError('Opponent left the match. Redirecting to menu...');
+                // Clean up video call when opponent leaves
+                endVideoCall();
                 setTimeout(() => {
                     resetGame();
                     stopLoading();
@@ -180,6 +200,8 @@ export const useGameMessages = ({
                 setDisconnectTimer(0);
                 clearDisconnectTimer();
                 showTemporaryError('Game ended due to opponent disconnection. Redirecting to menu...');
+                // Clean up video call when game ends due to disconnect
+                endVideoCall();
                 setTimeout(() => {
                     resetGame();
                     stopLoading();

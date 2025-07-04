@@ -38,6 +38,12 @@ export type GameMode = 'menu' | 'single_player' | 'multiplayer' | 'room_creator'
 export type PlayerColor = 'white' | 'black' | null;
 export type AIDifficulty = 'easy' | 'medium' | 'hard';
 
+export interface OpponentInfo {
+    name?: string;
+    email?: string;
+    clerkId?: string;
+}
+
 export interface GameState {
     gameMode: GameMode;
     roomId: string;
@@ -55,6 +61,7 @@ export interface GameState {
     incomingCall: { callId: string; from: string } | null;
     boardFen: string;
     selectedDifficulty: AIDifficulty | null;
+    opponentInfo: OpponentInfo | null;
 }
 
 export interface GameActions {
@@ -79,4 +86,5 @@ export interface GameActions {
     stopLoading: () => void;
     setBoardFen: (fen: string) => void;
     setSelectedDifficulty: (difficulty: AIDifficulty | null) => void;
+    setOpponentInfo: (info: OpponentInfo | null) => void;
 } 

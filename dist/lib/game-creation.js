@@ -9,6 +9,7 @@ const chess_js_1 = require("chess.js");
 const prisma_1 = require("./prisma");
 const utils_1 = require("./utils");
 const game_1 = require("../types/game");
+const clerk_server_1 = require("./clerk-server");
 async function handleInitGame(state, socket) {
     if (!(0, state_manager_1.validateAuthentication)(socket))
         return;
@@ -29,6 +30,11 @@ async function createMultiplayerGame(state, player1, player2) {
             status: 'ACTIVE',
         }
     });
+    // Fetch user info for both players
+    const [player1Info, player2Info] = await Promise.all([
+        player1.clerkId ? (0, clerk_server_1.getUserInfo)(player1.clerkId) : null,
+        player2.clerkId ? (0, clerk_server_1.getUserInfo)(player2.clerkId) : null
+    ]);
     const game = {
         player1,
         player2,
@@ -38,8 +44,29 @@ async function createMultiplayerGame(state, player1, player2) {
         dbId: dbGame.id
     };
     state.games.push(game);
-    player1.send(JSON.stringify({ type: game_1.INIT_GAME, payload: { color: 'white' } }));
-    player2.send(JSON.stringify({ type: game_1.INIT_GAME, payload: { color: 'black' } }));
+    // Send game start messages with opponent info
+    (0, utils_1.safeSend)(player1, {
+        type: game_1.INIT_GAME,
+        payload: {
+            color: 'white',
+            opponentInfo: player2Info ? {
+                name: (0, clerk_server_1.formatDisplayName)(player2Info),
+                email: player2Info.emailAddress,
+                clerkId: player2Info.id
+            } : null
+        }
+    });
+    (0, utils_1.safeSend)(player2, {
+        type: game_1.INIT_GAME,
+        payload: {
+            color: 'black',
+            opponentInfo: player1Info ? {
+                name: (0, clerk_server_1.formatDisplayName)(player1Info),
+                email: player1Info.emailAddress,
+                clerkId: player1Info.id
+            } : null
+        }
+    });
 }
 async function handleSinglePlayer(state, socket, difficulty = 'medium') {
     if (!(0, state_manager_1.validateAuthentication)(socket))
@@ -119,6 +146,11 @@ async function createRoomGame(state, room, player2) {
             status: 'ACTIVE',
         }
     });
+    // Fetch user info for both players
+    const [player1Info, player2Info] = await Promise.all([
+        player1.clerkId ? (0, clerk_server_1.getUserInfo)(player1.clerkId) : null,
+        player2.clerkId ? (0, clerk_server_1.getUserInfo)(player2.clerkId) : null
+    ]);
     const game = {
         player1: room.player1,
         player2: room.player2,
@@ -129,8 +161,29 @@ async function createRoomGame(state, room, player2) {
     };
     room.game = game;
     state.games.push(game);
-    room.player1.send(JSON.stringify({ type: game_1.ROOM_JOINED, payload: { color: 'white' } }));
-    room.player2.send(JSON.stringify({ type: game_1.ROOM_JOINED, payload: { color: 'black' } }));
+    // Send room joined messages with opponent info
+    (0, utils_1.safeSend)(room.player1, {
+        type: game_1.ROOM_JOINED,
+        payload: {
+            color: 'white',
+            opponentInfo: player2Info ? {
+                name: (0, clerk_server_1.formatDisplayName)(player2Info),
+                email: player2Info.emailAddress,
+                clerkId: player2Info.id
+            } : null
+        }
+    });
+    (0, utils_1.safeSend)(room.player2, {
+        type: game_1.ROOM_JOINED,
+        payload: {
+            color: 'black',
+            opponentInfo: player1Info ? {
+                name: (0, clerk_server_1.formatDisplayName)(player1Info),
+                email: player1Info.emailAddress,
+                clerkId: player1Info.id
+            } : null
+        }
+    });
 }
 // ... move all game creation, matchmaking, and room logic here ...
 // Export all these functions 

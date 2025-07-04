@@ -9,10 +9,38 @@ const utils_1 = require("./utils");
 const game_1 = require("../types/game");
 // ... move all game ending and cleanup logic here ...
 // Export all these functions 
+// Helper function to cleanup video calls for a socket
+function cleanupVideoCallsForSocket(state, socket) {
+    if (!('videoCalls' in state))
+        return;
+    const stateWithVideo = state;
+    const callsToDelete = [];
+    stateWithVideo.videoCalls.forEach((call, callId) => {
+        if (call.initiator === socket || call.receiver === socket) {
+            // Notify the other participant that the call ended
+            const otherParticipant = call.initiator === socket ? call.receiver : call.initiator;
+            if (otherParticipant && otherParticipant.readyState === 1) {
+                (0, utils_1.safeSend)(otherParticipant, {
+                    type: game_1.VIDEO_CALL_ENDED,
+                    payload: { callId },
+                    from: 'system',
+                    to: 'you'
+                });
+            }
+            callsToDelete.push(callId);
+        }
+    });
+    // Remove the calls
+    callsToDelete.forEach(callId => {
+        stateWithVideo.videoCalls.delete(callId);
+    });
+}
 async function handleEndGame(state, socket) {
     if (!(0, state_manager_1.validateAuthentication)(socket))
         return;
     try {
+        // Clean up any active video calls for this socket
+        cleanupVideoCallsForSocket(state, socket);
         // Check both arrays at once
         const singlePlayerIdx = state.singlePlayerGames.findIndex(g => g.player === socket);
         const multiplayerIdx = state.games.findIndex(g => g.player1 === socket || g.player2 === socket);

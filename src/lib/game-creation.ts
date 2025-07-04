@@ -4,6 +4,7 @@ import { Chess } from 'chess.js';
 import { prisma } from './prisma';
 import { safeSend } from './utils';
 import { INIT_GAME, WAITING_FOR_OPPONENT, ROOM_CREATED, ROOM_JOINED, ROOM_NOT_FOUND, ERROR } from '../types/game';
+import { getUserInfo, formatDisplayName } from './clerk-server';
 
 export async function handleInitGame(state: GameState, socket: WebSocketWithUserId): Promise<void> {
     if (!validateAuthentication(socket)) return;
@@ -24,6 +25,13 @@ async function createMultiplayerGame(state: GameState, player1: WebSocketWithUse
             status: 'ACTIVE',
         }
     });
+
+    // Fetch user info for both players
+    const [player1Info, player2Info] = await Promise.all([
+        player1.clerkId ? getUserInfo(player1.clerkId) : null,
+        player2.clerkId ? getUserInfo(player2.clerkId) : null
+    ]);
+
     const game: MultiplayerGame = {
         player1,
         player2,
@@ -33,8 +41,31 @@ async function createMultiplayerGame(state: GameState, player1: WebSocketWithUse
         dbId: dbGame.id
     };
     state.games.push(game);
-    (player1 as any).send(JSON.stringify({ type: INIT_GAME, payload: { color: 'white' } }));
-    (player2 as any).send(JSON.stringify({ type: INIT_GAME, payload: { color: 'black' } }));
+
+    // Send game start messages with opponent info
+    safeSend(player1, { 
+        type: INIT_GAME, 
+        payload: { 
+            color: 'white',
+            opponentInfo: player2Info ? {
+                name: formatDisplayName(player2Info),
+                email: player2Info.emailAddress,
+                clerkId: player2Info.id
+            } : null
+        } 
+    });
+    
+    safeSend(player2, { 
+        type: INIT_GAME, 
+        payload: { 
+            color: 'black',
+            opponentInfo: player1Info ? {
+                name: formatDisplayName(player1Info),
+                email: player1Info.emailAddress,
+                clerkId: player1Info.id
+            } : null
+        } 
+    });
 }
 
 export async function handleSinglePlayer(state: GameState, socket: ServerWebSocket, difficulty: string = 'medium'): Promise<void> {
@@ -118,6 +149,13 @@ async function createRoomGame(state: GameState, room: GameRoom, player2: WebSock
             status: 'ACTIVE',
         }
     });
+
+    // Fetch user info for both players
+    const [player1Info, player2Info] = await Promise.all([
+        player1.clerkId ? getUserInfo(player1.clerkId) : null,
+        player2.clerkId ? getUserInfo(player2.clerkId) : null
+    ]);
+
     const game: MultiplayerGame = {
         player1: room.player1,
         player2: room.player2,
@@ -128,8 +166,31 @@ async function createRoomGame(state: GameState, room: GameRoom, player2: WebSock
     };
     room.game = game;
     state.games.push(game);
-    room.player1.send(JSON.stringify({ type: ROOM_JOINED, payload: { color: 'white' } }));
-    room.player2.send(JSON.stringify({ type: ROOM_JOINED, payload: { color: 'black' } }));
+
+    // Send room joined messages with opponent info
+    safeSend(room.player1, { 
+        type: ROOM_JOINED, 
+        payload: { 
+            color: 'white',
+            opponentInfo: player2Info ? {
+                name: formatDisplayName(player2Info),
+                email: player2Info.emailAddress,
+                clerkId: player2Info.id
+            } : null
+        } 
+    });
+    
+    safeSend(room.player2, { 
+        type: ROOM_JOINED, 
+        payload: { 
+            color: 'black',
+            opponentInfo: player1Info ? {
+                name: formatDisplayName(player1Info),
+                email: player1Info.emailAddress,
+                clerkId: player1Info.id
+            } : null
+        } 
+    });
 }
 
 // ... move all game creation, matchmaking, and room logic here ...

@@ -8,13 +8,13 @@ import {
     useGameState,
     useGameMessages,
     useGameActions,
-    GameMenu,
     WaitingScreen,
     GameBoard,
     GameNotifications,
     LoadingScreen,
     DifficultySelector
 } from "./game/index";
+import { ModernGameMenu } from "./game/ModernGameMenu";
 import { AIDifficulty } from "./game/types";
 
 export const Game = () => {
@@ -40,6 +40,7 @@ export const Game = () => {
         incomingCall,
         boardFen,
         selectedDifficulty,
+        opponentInfo,
         setRoomId,
         setErrorMessage,
         resetGame,
@@ -62,13 +63,14 @@ export const Game = () => {
         handleVideoMessage,
         localVideoRef,
         remoteVideoRef
-    } = useVideoCall(socket, 'player', setErrorMessage);
+    } = useVideoCall(socket, 'player');
 
     // Game actions
     const gameActions = useGameActions({
         socket,
         gameActions: gameState,
-        roomId
+        roomId,
+        endVideoCall: endCall
     });
 
     // Initialize loading timeout
@@ -85,7 +87,8 @@ export const Game = () => {
         chessRef,
         gameState,
         gameActions: gameState,
-        handleVideoMessage
+        handleVideoMessage,
+        endVideoCall: endCall
     });
 
     // Computed values
@@ -96,23 +99,35 @@ export const Game = () => {
 
     // Video call handlers
     const handleStartVideoCall = () => {
+        console.log('[Game] Starting video call with opponentId:', opponentId, 'started:', started);
         if (started && opponentId) {
+            console.log('[Game] Calling startCall...');
             startCall(opponentId);
+        } else {
+            console.log('[Game] Cannot start video call - started:', started, 'opponentId:', opponentId);
         }
     };
 
     const handleAcceptIncomingCall = () => {
+        console.log('[Game] Accepting incoming call:', incomingCall);
         if (incomingCall) {
+            console.log('[Game] Calling acceptCall...');
             acceptCall(incomingCall.callId, incomingCall.from);
             gameState.setIncomingCall(null);
         }
     };
 
     const handleRejectIncomingCall = () => {
+        console.log('[Game] Rejecting incoming call:', incomingCall);
         if (incomingCall) {
+            console.log('[Game] Calling rejectCall...');
             rejectCall(incomingCall.callId, incomingCall.from);
             gameState.setIncomingCall(null);
         }
+    };
+
+    const handleDismissError = () => {
+        setErrorMessage(null);
     };
 
     const handleCopyRoomCode = () => {
@@ -159,7 +174,7 @@ export const Game = () => {
     // Menu screen
     if (hasCheckedResume && gameMode === 'menu') {
         return (
-            <GameMenu
+            <ModernGameMenu
                 roomId={roomId}
                 onRoomIdChange={setRoomId}
                 onStartSinglePlayer={() => gameState.setGameMode('single_player')}
@@ -184,12 +199,13 @@ export const Game = () => {
 
     // Main game screen
     return (
-        <div className="h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-2 overflow-hidden">
+        <div className="h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-2">
             <GameNotifications
                 errorMessage={errorMessage}
                 incomingCall={incomingCall}
                 onAcceptCall={handleAcceptIncomingCall}
                 onRejectCall={handleRejectIncomingCall}
+                onDismissError={handleDismissError}
             />
             
             <GameBoard
@@ -205,6 +221,9 @@ export const Game = () => {
                 disconnectTimer={disconnectTimer}
                 isGameDisabled={isGameDisabled}
                 boardFen={boardFen}
+                incomingCall={incomingCall}
+                opponentInfo={opponentInfo}
+                selectedDifficulty={selectedDifficulty}
                 videoCallState={videoCallState}
                 localVideoRef={localVideoRef}
                 remoteVideoRef={remoteVideoRef}

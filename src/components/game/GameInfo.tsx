@@ -5,12 +5,14 @@ interface GameInfoProps {
     playerColor: PlayerColor;
     moveCount: number;
     gameMode: GameMode;
+    opponentName: string;
 }
 
 export const GameInfo = ({
     playerColor,
     moveCount,
-    gameMode
+    gameMode,
+    opponentName
 }: GameInfoProps) => {
     return (
         <Card className="bg-white/10 backdrop-blur-lg border-white/20">
@@ -18,6 +20,12 @@ export const GameInfo = ({
                 <CardTitle className="text-white text-xs">Game Info:</CardTitle>
             </CardHeader>
             <CardContent className="pt-0 space-y-1">
+                <div className="flex justify-between items-center">
+                    <span className="text-gray-300 text-xs">Opponent:</span>
+                    <span className="text-base text-white font-semibold truncate max-w-[140px] text-right">
+                        {opponentName}
+                    </span>
+                </div>
                 <div className="flex justify-between items-center">
                     <span className="text-gray-300 text-xs">You are playing as:</span>
                     <div className={`text-sm font-bold ${playerColor === 'white' ? 'text-white' : 'text-gray-300'}`}>

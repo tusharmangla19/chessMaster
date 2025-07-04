@@ -26,8 +26,9 @@ function handleVideoCallMessage(state, socket, message) {
 function handleVideoCallRequest(state, socket, message) {
     const { payload } = message;
     const callId = payload?.callId;
-    if (!callId)
+    if (!callId) {
         return;
+    }
     const targetUser = findOpponent(state, socket);
     if (!targetUser) {
         socket.send(JSON.stringify({
@@ -56,10 +57,12 @@ function findOpponent(state, socket) {
         return game.player1 === socket ? game.player2 : game.player1;
     }
     for (const room of Array.from(state.rooms.values())) {
-        if (room.player1 === socket && room.player2)
+        if (room.player1 === socket && room.player2) {
             return room.player2;
-        if (room.player2 === socket && room.player1)
+        }
+        if (room.player2 === socket && room.player1) {
             return room.player1;
+        }
     }
     return null;
 }

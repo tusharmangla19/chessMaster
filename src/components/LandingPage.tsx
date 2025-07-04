@@ -24,7 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { getDailyPrompt } from "@/actions/public";
 import faqs from "@/data/faqs";
-import { SignInButton, SignUpButton } from '@clerk/nextjs';
+import { SignUpButton } from '@clerk/nextjs';
 import { useState, useEffect } from 'react';
 
 const features = [
@@ -32,37 +32,37 @@ const features = [
     icon: Video,
     title: "Real-Time Video Calls",
     description:
-      "Play chess face-to-face with crystal clear video quality. Feel like you're sitting across the table from your opponent with our seamless video integration.",
+      "Play chess face-to-face with smooth video streaming. Connect with your opponent through seamless video calls with full audio and camera controls.",
   },
   {
     icon: Users,
-    title: "Find Opponents Instantly",
+    title: "Create & Join Rooms",
     description:
-      "Match with players of similar skill levels instantly. Our smart matchmaking system ensures fair and challenging games every time.",
+      "Create private rooms with custom codes to play with friends, or join existing rooms. Perfect for organized matches and playing with people you know.",
+  },
+  {
+    icon: Users,
+    title: "Quick Multiplayer Games",
+    description:
+      "Start multiplayer games instantly by finding available opponents or connecting with other players looking for a match.",
   },
   {
     icon: Brain,
-    title: "AI Opponents",
+    title: "AI Opponents - 3 Difficulty Levels",
     description:
-      "Practice against AI opponents at multiple difficulty levels. From beginner to master, there's always a perfect challenge waiting for you.",
-  },
-  {
-    icon: BarChart2,
-    title: "Game Analytics",
-    description:
-      "Track your progress with detailed game analysis, move suggestions, and performance insights to improve your chess skills.",
+      "Practice against intelligent computer opponents with Easy, Medium, and Hard difficulty levels. Perfect your skills at your own pace.",
   },
   {
     icon: Shield,
     title: "Secure & Reliable",
     description:
-      "Your games are automatically saved and protected. Never lose a game due to disconnections with our robust recovery system.",
+      "Your games are automatically saved and protected. Never lose progress with our robust system that handles connection issues gracefully.",
   },
   {
     icon: Zap,
-    title: "Lightning Fast",
+    title: "Instant Move Updates",
     description:
-      "Experience instant moves and real-time synchronization. Our optimized platform ensures smooth gameplay on any device.",
+      "Experience smooth, real-time gameplay with instant move synchronization. Every move appears immediately for both players.",
   }
 ];
 
@@ -79,31 +79,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Navigation */}
-      <nav className="absolute top-0 w-full z-50 p-6">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              <span className="text-2xl">♔</span>
-            </div>
-            <span className="text-white text-xl font-bold">ChessMaster</span>
-          </div>
-          <div className="flex space-x-4">
-            <SignInButton mode="modal">
-              <button className="text-white hover:text-purple-300 transition-colors">
-                Sign In
-              </button>
-            </SignInButton>
-            <SignUpButton mode="modal">
-              <button className="bg-white text-purple-900 px-4 py-2 rounded-lg hover:bg-purple-100 transition-colors font-medium">
-                Get Started
-              </button>
-            </SignUpButton>
-          </div>
-        </div>
-      </nav>
-
-      <div className="relative container mx-auto px-4 pt-16 pb-16">
+      <div className="relative container mx-auto px-4 py-16">
       {/* Hero Section */}
         <div className="max-w-5xl mx-auto text-center space-y-8">
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6">
@@ -113,8 +89,7 @@ export default function LandingPage() {
             </span>
           </h1>
           <p className="text-xl md:text-2xl mb-8 text-gray-300 font-medium leading-relaxed">
-            Play chess online with friends, challenge AI opponents, and improve your skills with real-time video calls and advanced analytics. Experience the ultimate chess platform.
-          </p>
+          Experience chess like never before — play with friends in private rooms, join quick matches, or train with AI — all with real-time video calls on a fast, secure, and immersive platform.          </p>
 
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-t from-purple-50/10 via-transparent to-transparent pointer-events-none z-10" />
@@ -193,16 +168,20 @@ export default function LandingPage() {
                 Real-Time Video Calls
               </h3>
               <p className="text-lg text-gray-300">
-                Experience face-to-face chess matches with crystal clear video quality. Our seamless video integration makes you feel like you're sitting across the table from your opponent.
+                Experience face-to-face chess matches with smooth video streaming. Connect with your opponent through seamless video calls and enjoy the social aspect of chess.
               </p>
               <ul className="space-y-3">
                 <li className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-purple-400" />
-                  <span className="text-gray-300">HD video quality</span>
+                  <span className="text-gray-300">High-quality video streaming</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-purple-400" />
-                  <span className="text-gray-300">Low latency connection</span>
+                  <span className="text-gray-300">Audio and camera controls</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-purple-400" />
+                  <span className="text-gray-300">Easy call management</span>
                 </li>
               </ul>
             </div>
@@ -215,65 +194,73 @@ export default function LandingPage() {
             </div>
             </div>
 
-          {/* Feature 2: AI Opponents */}
+          {/* Feature 2: Room Creation & Matchmaking */}
           <div className="grid md:grid-cols-2 gap-12">
             <div className="space-y-6">
               <div className="h-12 w-12 bg-purple-500 rounded-full flex items-center justify-center">
-                <Brain className="h-6 w-6 text-white" />
+                <Users className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-2xl font-bold text-purple-300">
-                AI Opponents
+                Multiple Ways to Play
               </h3>
               <p className="text-lg text-gray-300">
-                Practice against AI opponents at multiple difficulty levels. From beginner to master, there's always a perfect challenge waiting for you to improve your skills.
+                Create private rooms with custom codes to play with friends, join existing rooms, or start quick multiplayer games. Connect with other chess enthusiasts in various ways.
               </p>
               <ul className="space-y-3">
                 <li className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-purple-400" />
-                  <span className="text-gray-300">Multiple difficulty levels</span>
+                  <span className="text-gray-300">Private rooms with custom codes</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-purple-400" />
-                  <span className="text-gray-300">Adaptive learning</span>
+                  <span className="text-gray-300">Join existing game rooms</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-purple-400" />
+                  <span className="text-gray-300">Quick multiplayer games</span>
                 </li>
               </ul>
             </div>
             <div className="space-y-4 bg-white/10 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20">
               <div className="flex justify-center mb-8">
                 <div className="w-64 h-48 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg flex items-center justify-center">
-                  <Brain className="h-16 w-16 text-purple-400" />
+                  <Users className="h-16 w-16 text-purple-400" />
                 </div>
               </div>
             </div>
             </div>
 
-          {/* Feature 3: Game Analytics */}
+          {/* Feature 3: AI Opponents */}
           <div className="grid md:grid-cols-2 gap-12 md:flex-row-reverse">
             <div className="space-y-6 md:order-2">
               <div className="h-12 w-12 bg-purple-500 rounded-full flex items-center justify-center">
-                <BarChart2 className="h-6 w-6 text-white" />
+                <Brain className="h-6 w-6 text-white" />
               </div>
               <h3 className="text-2xl font-bold text-purple-300">
-                Game Analytics
+                AI Opponents - 3 Difficulty Levels
               </h3>
               <p className="text-lg text-gray-300">
-                Track your progress with detailed game analysis, move suggestions, and performance insights to improve your chess skills systematically.
+                Practice against intelligent computer opponents with Easy, Medium, and Hard difficulty levels. Perfect your skills at your own pace.
               </p>
               <ul className="space-y-3">
                 <li className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-purple-400" />
-                  <span className="text-gray-300">Move analysis</span>
+                  <span className="text-gray-300">Three difficulty levels to choose from</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-purple-400" />
-                  <span className="text-gray-300">Performance tracking</span>
+                  <span className="text-gray-300">Smart and challenging gameplay</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-purple-400" />
+                  <span className="text-gray-300">Great for skill development</span>
                 </li>
               </ul>
             </div>
             <div className="space-y-4 bg-white/10 backdrop-blur-lg rounded-2xl shadow-xl p-6 border border-white/20 md:order-1">
               <div className="flex justify-center mb-8">
                 <div className="w-64 h-48 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-lg flex items-center justify-center">
-                  <BarChart2 className="h-16 w-16 text-purple-400" />
+                  <Brain className="h-16 w-16 text-purple-400" />
                 </div>
               </div>
             </div>
